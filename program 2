@@ -1,0 +1,98 @@
+import java.io.*;
+import java.sql.*;
+import javax.servlet.*;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.*;
+
+@WebServlet("/EmployeeServlet")
+public class EmployeeServlet extends HttpServlet {
+
+    private static final String JDBC_URL = "jdbc:mysql://localhost:3306/company_db";
+    private static final String JDBC_USER = "root";
+    private static final String JDBC_PASSWORD = "yourpassword";
+
+    // Load JDBC driver
+    public void init() throws ServletException {
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver"); // MySQL 8.x driver
+        } catch (ClassNotFoundException e) {
+            throw new ServletException("JDBC Driver not found.", e);
+        }
+    }
+
+    // Show employee list and search form
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+        throws ServletException, IOException {
+
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+
+        out.println("<html><head><title>Employee List</title></head><body>");
+        out.println("<h2>All Employees</h2>");
+
+        try (Connection conn = DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASSWORD);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT * FROM employees")) {
+
+            out.println("<table border='1'>");
+            out.println("<tr><th>ID</th><th>Name</th><th>Department</th><th>Salary</th></tr>");
+
+            while (rs.next()) {
+                out.println("<tr>");
+                out.println("<td>" + rs.getInt("id") + "</td>");
+                out.println("<td>" + rs.getString("name") + "</td>");
+                out.println("<td>" + rs.getString("department") + "</td>");
+                out.println("<td>" + rs.getDouble("salary") + "</td>");
+                out.println("</tr>");
+            }
+
+            out.println("</table>");
+
+        } catch (SQLException e) {
+            out.println("<p>Error: " + e.getMessage() + "</p>");
+        }
+
+        // Search form
+        out.println("<h3>Search Employee by ID</h3>");
+        out.println("<form method='post' action='EmployeeServlet'>");
+        out.println("Enter ID: <input type='text' name='empId' required>");
+        out.println("<input type='submit' value='Search'>");
+        out.println("</form>");
+
+        out.println("</body></html>");
+    }
+
+    // Handle search by employee ID
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+        throws ServletException, IOException {
+
+        String empId = request.getParameter("empId");
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+
+        out.println("<html><head><title>Employee Search</title></head><body>");
+        out.println("<h2>Search Result</h2>");
+
+        try (Connection conn = DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASSWORD);
+             PreparedStatement ps = conn.prepareStatement("SELECT * FROM employees WHERE id = ?")) {
+
+            ps.setInt(1, Integer.parseInt(empId));
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                out.println("<p><strong>ID:</strong> " + rs.getInt("id") + "</p>");
+                out.println("<p><strong>Name:</strong> " + rs.getString("name") + "</p>");
+                out.println("<p><strong>Department:</strong> " + rs.getString("department") + "</p>");
+                out.println("<p><strong>Salary:</strong> " + rs.getDouble("salary") + "</p>");
+            } else {
+                out.println("<p>No employee found with ID: " + empId + "</p>");
+            }
+
+        } catch (SQLException | NumberFormatException e) {
+            out.println("<p>Error: " + e.getMessage() + "</p>");
+        }
+
+        out.println("<br><a href='EmployeeServlet'>Back to Employee List</a>");
+        out.println("</body></html>");
+    }
+}
